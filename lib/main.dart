@@ -36,8 +36,6 @@ class _MyAppState extends State<MyApp> {
           .putIfAbsent("Server-Id", () => serverId);
     }
     this.page = instance.getPage('bauhaus-mobile', path.replaceFirst('/', '')) as Future<br.Page>;
-
-    print(path);
   }
 
   @override
