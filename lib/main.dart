@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 
-Future<void> main() async {
-  runApp(MyApp());
+void main() {
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -24,6 +24,7 @@ class _MyAppState extends State<MyApp> {
   void update() {
     String? token = Uri.base.queryParameters["token"];
     String? serverId = Uri.base.queryParameters["server-id"];
+    String? path = Uri.base.path ?? '';
 
     final instance = br.PageApi(
         br.ApiClient(basePath: 'https://sandbox-sales02.bloomreach.io'));
@@ -34,8 +35,9 @@ class _MyAppState extends State<MyApp> {
       instance.apiClient.defaultHeaderMap
           .putIfAbsent("Server-Id", () => serverId);
     }
+    this.page = instance.getPage('bauhaus-mobile', path.replaceFirst('/', '')) as Future<br.Page>;
 
-    this.page = instance.getPage('bauhaus-mobile', '') as Future<br.Page>;
+    print(path);
   }
 
   @override
@@ -87,7 +89,7 @@ class _MyAppState extends State<MyApp> {
                       return BannerCollection(item: item, page: page);
                     case 'TitleAndText':
                       return TitleAndText(item: item, page: page);
-                    case'IntroSlider':
+                    case 'IntroSlider':
                       return Carousel(item: item, page: page);
                     default:
                       return ListTile(
@@ -110,7 +112,6 @@ class _MyAppState extends State<MyApp> {
 }
 
 class Carousel extends StatelessWidget {
-
   final br.ContainerItem? item;
   final br.Page? page;
 
@@ -122,12 +123,11 @@ class Carousel extends StatelessWidget {
 
     List<dynamic> slides = content?.getData('slides');
 
-    final List<Widget> imageSliders = slides
-        .map((slide) {
+    final List<Widget> imageSliders = slides.map((slide) {
       br.Pointer imagePointer =
-      br.Pointer.fromJson(slide['image']) as br.Pointer;
+          br.Pointer.fromJson(slide['image']) as br.Pointer;
       br.Imageset image =
-      page?.page[imagePointer.getReference()] as br.Imageset;
+          page?.page[imagePointer.getReference()] as br.Imageset;
       String imageUrl = image.getImageLink() as String;
       String subtitle = slide['subtitle'];
 
@@ -170,8 +170,7 @@ class Carousel extends StatelessWidget {
               )),
         ),
       );
-    })
-        .toList();
+    }).toList();
 
     return CarouselSlider(
       options: CarouselOptions(
@@ -182,7 +181,6 @@ class Carousel extends StatelessWidget {
       items: imageSliders,
     );
   }
-
 }
 
 class TitleAndText extends StatelessWidget {
@@ -217,44 +215,43 @@ class BannerCollection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     List<dynamic> banners =
-    this.item?.getContent(this.page as br.Page)?.getData("banners");
+        this.item?.getContent(this.page as br.Page)?.getData("banners");
 
     return Column(
         children: banners.map((banner) {
-          String message = banner['subtitle'];
-          String title = banner['text'];
-          br.Pointer imagePointer =
+      String message = banner['subtitle'];
+      String title = banner['text'];
+      br.Pointer imagePointer =
           br.Pointer.fromJson(banner['image']) as br.Pointer;
-          br.Imageset image =
+      br.Imageset image =
           page?.page[imagePointer.getReference()] as br.Imageset;
-          String imageUrl = image.getImageLink() as String;
-          return ClipRect(
-            /** Banner Widget **/
-              child: Banner(
-                message: message,
-                location: BannerLocation.topEnd,
-                color: Colors.red,
-                child: Container(
-                  color: Colors.grey[100],
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
-                    child: Column(
-                      children: <Widget>[
-                        Image.network(imageUrl),
-                        SizedBox(height: 5),
-                        ElevatedButton(
-                          child: Text(title),
-                          style: ButtonStyle(
-                              backgroundColor: MaterialStateProperty.all(
-                                  Colors.red)),
-                          onPressed: () {},
-                        )
-                        //RaisedButton
-                      ], //<Widget>[]
-                    ), //Column
-                  ), //Padding
-                ), //Container
-              ));
-        }).toList());
+      String imageUrl = image.getImageLink() as String;
+      return ClipRect(
+          /** Banner Widget **/
+          child: Banner(
+        message: message,
+        location: BannerLocation.topEnd,
+        color: Colors.red,
+        child: Container(
+          color: Colors.grey[100],
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+            child: Column(
+              children: <Widget>[
+                Image.network(imageUrl),
+                SizedBox(height: 5),
+                ElevatedButton(
+                  child: Text(title),
+                  style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(Colors.red)),
+                  onPressed: () {},
+                )
+                //RaisedButton
+              ], //<Widget>[]
+            ), //Column
+          ), //Padding
+        ), //Container
+      ));
+    }).toList());
   }
 }
