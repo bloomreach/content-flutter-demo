@@ -24,7 +24,7 @@ class _MyAppState extends State<MyApp> {
   void update() {
     String? token = Uri.base.queryParameters["token"];
     String? serverId = Uri.base.queryParameters["server-id"];
-    String? path = Uri.base.path ?? '';
+    String? path = Uri?.base?.path ?? '';
 
     final instance = br.PageApi(
         br.ApiClient(basePath: 'https://sandbox-sales02.bloomreach.io'));
@@ -35,7 +35,7 @@ class _MyAppState extends State<MyApp> {
       instance.apiClient.defaultHeaderMap
           .putIfAbsent("Server-Id", () => serverId);
     }
-    this.page = instance.getPage('bauhaus-mobile', path.replaceFirst('/', '')) as Future<br.Page>;
+    this.page = instance.getPage('mobile-native-demo', path.replaceFirst('/', '')) as Future<br.Page>;
   }
 
   @override
@@ -47,10 +47,10 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "flutter demo - bauhaus-mobile",
+      title: "flutter demo",
       home: Scaffold(
         appBar: AppBar(
-          title: Text("flutter demo - bauhaus-mobile"),
+          title: Text("flutter demo"),
           actions: <Widget>[
             Padding(
                 padding: EdgeInsets.only(right: 20.0),
