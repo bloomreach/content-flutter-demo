@@ -2,101 +2,138 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:collection';
+
 import 'package:brcontent/api.dart' as br;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:fluttersdkv1/widget/CarouselWidget.dart';
+import 'package:fluttersdkv1/widget/TitleAndTextWidget.dart';
+
+import 'experimental/SimpleComponentListView2.dart';
+
+
 
 void main() {
-  runApp(const MyApp());
+  runApp(BrApplication(
+      "https://sandbox-sales02.bloomreach.io", 'mobile-native-demo'));
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+Map<String, dynamic Function(br.Page page, br.ContainerItem item)> getComponentMapping(){
+  Map<String, dynamic Function(br.Page page, br.ContainerItem item)>
+  components = HashMap();
+  components.putIfAbsent(
+      "IntroSlider",
+          () => (br.Page page, br.ContainerItem item) =>
+          CarouselWidget(item: item, page: page));
+  components.putIfAbsent(
+      "BannerCollection",
+          () => (br.Page page, br.ContainerItem item) =>
+          BannerCollection(item: item, page: page));
+  components.putIfAbsent(
+      "TitleAndText",
+          () => (br.Page page, br.ContainerItem item) =>
+          TitleAndTextWidget(item: item, page: page));
+  return components;
+}
+
+class BrApplication extends StatefulWidget {
+  final String baseUrl;
+  final String channelId;
+
+  const BrApplication(this.baseUrl, this.channelId, {Key? key}) : super(key: key);
 
   @override
-  _MyAppState createState() => _MyAppState();
+  BrApplicationState createState() {
+    return BrApplicationState(baseUrl, channelId);
+  }
 }
 
-class _MyAppState extends State<MyApp> {
+class BrApplicationState extends State<BrApplication> {
+  final String baseUrl;
+  final String channelId;
   late Future<br.Page> page;
-
-  void update() {
-    String? token = Uri.base.queryParameters["token"];
-    String? serverId = Uri.base.queryParameters["server-id"];
-    String? path = Uri?.base?.path ?? '';
-
-    final instance = br.PageApi(
-        br.ApiClient(basePath: 'https://sandbox-sales02.bloomreach.io'));
-
-    if (token != null && serverId != null) {
-      instance.apiClient.defaultHeaderMap
-          .putIfAbsent("Authorization", () => "Bearer " + token);
-      instance.apiClient.defaultHeaderMap
-          .putIfAbsent("Server-Id", () => serverId);
-    }
-    this.page = instance.getPage('mobile-native-demo', path.replaceFirst('/', '')) as Future<br.Page>;
-  }
+  String currentPath = '';
+  final Map<String, dynamic Function(br.Page page, br.ContainerItem item)> componentMapping = getComponentMapping();
 
   @override
   void initState() {
     super.initState();
+    this.currentPath = Uri?.base?.path ?? '';
     update();
+  }
+
+  void setPage(String newPath) {
+    setState(() {
+      currentPath = newPath;
+      update();
+    });
+  }
+
+  BrApplicationState(this.baseUrl, this.channelId);
+
+  void update() {
+    final String? token = Uri.base.queryParameters["token"];
+    final String? serverId = Uri.base.queryParameters["server-id"];
+    final String path = currentPath;
+
+    final pageApi = br.PageApi(br.ApiClient(basePath: baseUrl));
+
+    if (token != null && serverId != null) {
+      pageApi.apiClient.defaultHeaderMap
+          .putIfAbsent("Authorization", () => "Bearer " + token);
+      pageApi.apiClient.defaultHeaderMap
+          .putIfAbsent("Server-Id", () => serverId);
+    }
+    this.page = pageApi.getPage(channelId, path.replaceFirst('/', ''))
+        as Future<br.Page>;
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "flutter demo",
+      title: "path: " + currentPath,
       home: Scaffold(
+        drawer: FutureBuilder<br.Page>(
+          future: page as Future<br.Page>,
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              br.Page page = snapshot.data as br.Page;
+              br.Component menuComponent = page.getComponentByPath('menu');
+              br.Menu menu = menuComponent.getMenu(page) as br.Menu;
+
+              return NavigationDrawer(page, menu, setPage);
+            } else if (snapshot.hasError) {
+              return Text('${snapshot.error}');
+            }
+            // By default, show a loading spinner.
+            return Center(child: CircularProgressIndicator());
+          },
+        ),
         appBar: AppBar(
-          title: Text("flutter demo"),
-          actions: <Widget>[
-            Padding(
-                padding: EdgeInsets.only(right: 20.0),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      update();
-                    });
-                  },
-                  child: Icon(
-                    Icons.refresh,
-                    size: 26.0,
-                  ),
-                ))
-          ],
+          title: FutureBuilder<br.Page>(
+            future: page,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                br.Page page = snapshot.data as br.Page;
+                return Text(page.getDocument()?.data?['title']);
+              } else if (snapshot.hasError) {
+                return Text('${snapshot.error}');
+              }
+              // By default, show a loading spinner.
+              return Center(child: CircularProgressIndicator());
+            },
+          ),
         ),
         body: FutureBuilder<br.Page>(
-          future: page as Future<br.Page>,
+          future: page,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               br.Page page = snapshot.data as br.Page;
               br.Container container = page.getComponentByPath('container');
               var items = container.getComponents(page);
 
-              return ListView.builder(
-                scrollDirection: Axis.vertical,
-                shrinkWrap: true,
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-
-                  switch (item.ctype) {
-                    case 'BannerCollection':
-                      return BannerCollection(item: item, page: page);
-                    case 'TitleAndText':
-                      return TitleAndText(item: item, page: page);
-                    case 'IntroSlider':
-                      return Carousel(item: item, page: page);
-                    default:
-                      return ListTile(
-                        title: Text(item.ctype ?? ''),
-                        subtitle: Text('not yet defined'),
-                      );
-                  }
-                },
-              );
+              return SimpleComponentListView2(componentMapping, items, page);
             } else if (snapshot.hasError) {
               return Text('${snapshot.error}');
             }
@@ -109,100 +146,53 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class Carousel extends StatelessWidget {
-  final br.ContainerItem? item;
-  final br.Page? page;
+class NavigationDrawer extends StatelessWidget {
+  final br.Page page;
+  final br.Menu menu;
+  final void Function(String newPath) setPath;
 
-  const Carousel({Key? key, this.item, this.page}) : super(key: key);
+  NavigationDrawer(this.page, this.menu, this.setPath);
+
+  void onMenuItemClicked(BuildContext context, String newPath) {
+    setPath(newPath);
+    Navigator.pop(context);
+  }
 
   @override
   Widget build(BuildContext context) {
-    var content = item?.getContent(page!);
-
-    List<dynamic> slides = content?.getData('slides');
-
-    final List<Widget> imageSliders = slides.map((slide) {
-      br.Pointer imagePointer =
-          br.Pointer.fromJson(slide['image']) as br.Pointer;
-      br.Imageset image =
-          page?.page[imagePointer.getReference()] as br.Imageset;
-      String imageUrl = image.getImageLink() as String;
-      String subtitle = slide['subtitle'];
-
-      return Container(
+    List<Widget> items = menu
+        ?.getSiteMenuItems()
+        ?.map((item) => buildMenuItem(
+            text: item.name ?? '',
+            onClicked: () =>
+                onMenuItemClicked(context, item.getLink() as String)))
+        .toList() as List<Widget>;
+    return Drawer(
         child: Container(
-          margin: EdgeInsets.all(5.0),
-          child: ClipRRect(
-              borderRadius: BorderRadius.all(Radius.circular(5.0)),
-              child: Stack(
-                children: <Widget>[
-                  Image.network(imageUrl, fit: BoxFit.cover, width: 1000.0),
-                  Positioned(
-                    bottom: 0.0,
-                    left: 0.0,
-                    right: 0.0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color.fromARGB(200, 0, 0, 0),
-                            Color.fromARGB(0, 0, 0, 0)
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                        ),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                          vertical: 10.0, horizontal: 20.0),
-                      child: Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )),
-        ),
-      );
-    }).toList();
+            color: Colors.blue,
+            child: Column(
+              children: items,
+            )));
+  }
 
-    return CarouselSlider(
-      options: CarouselOptions(
-        autoPlay: true,
-        aspectRatio: 2.0,
-        enlargeCenterPage: true,
-      ),
-      items: imageSliders,
+  Widget buildMenuItem({
+    required String text,
+    // required IconData icon,
+    VoidCallback? onClicked,
+  }) {
+    final color = Colors.white;
+    final hoverColor = Colors.white70;
+
+    return ListTile(
+      // leading: Icon(icon, color: color),
+      title: Text(text, style: TextStyle(color: color)),
+      hoverColor: hoverColor,
+      onTap: onClicked,
     );
   }
 }
 
-class TitleAndText extends StatelessWidget {
-  final br.ContainerItem? item;
-  final br.Page? page;
 
-  const TitleAndText({Key? key, this.item, this.page}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    var content = this.item?.getContent(this.page as br.Page);
-    String text = content?.getData("text");
-    return Padding(
-        padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
-        child: Column(children: [
-          Text(content?.getData("title"),
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          SizedBox(
-            height: 8,
-          ),
-          Center(child: MarkdownBody(data: content?.getData("text"))),
-        ]));
-  }
-}
 
 class BannerCollection extends StatelessWidget {
   final br.ContainerItem? item;
