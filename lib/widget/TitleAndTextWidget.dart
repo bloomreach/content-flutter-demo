@@ -5,7 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 class TitleAndTextWidget
     extends br.ComponentStatelessWidget<br.ContainerItem, br.Page> {
 
-  const TitleAndTextWidget(
+  TitleAndTextWidget(
       {Key? key, required br.ContainerItem item, required br.Page page})
       : super(key, item, page);
 

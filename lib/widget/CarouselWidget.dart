@@ -7,7 +7,7 @@ import '../model/CarouselData.dart';
 class CarouselWidget extends br.ComponentStatelessWidget<br.ContainerItem, br.Page> {
 
 
-  const CarouselWidget({Key? key, required br.ContainerItem item, required br.Page page}) : super(key, item, page);
+  CarouselWidget({Key? key, required br.ContainerItem item, required br.Page page}) : super(key, item, page);
 
   @override
   Widget build(BuildContext context) {

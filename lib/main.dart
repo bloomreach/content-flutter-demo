@@ -4,36 +4,38 @@
 
 import 'dart:collection';
 
+import 'package:bloomreachdemo/widget/ListWidget.dart';
 import 'package:brcontent/api.dart' as br;
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:fluttersdkv1/widget/CarouselWidget.dart';
-import 'package:fluttersdkv1/widget/TitleAndTextWidget.dart';
-
-import 'experimental/SimpleComponentListView2.dart';
-
-
+import 'package:bloomreachdemo/widget/BannerCollection.dart';
+import 'package:bloomreachdemo/widget/CarouselWidget.dart';
+import 'package:bloomreachdemo/widget/TitleAndTextWidget.dart';
 
 void main() {
   runApp(BrApplication(
       "https://sandbox-sales02.bloomreach.io", 'mobile-native-demo'));
 }
 
-Map<String, dynamic Function(br.Page page, br.ContainerItem item)> getComponentMapping(){
-  Map<String, dynamic Function(br.Page page, br.ContainerItem item)>
-  components = HashMap();
+Map<String, dynamic Function(br.Page page, br.ContainerItem item,[void Function(String newPath)? setPage])>
+    getComponentMapping() {
+  Map<String, dynamic Function(br.Page page, br.ContainerItem item, [void Function(String newPath)? setPage])>
+      components = HashMap();
   components.putIfAbsent(
       "IntroSlider",
-          () => (br.Page page, br.ContainerItem item) =>
+      () => (br.Page page, br.ContainerItem item, [void Function(String newPath)? setPage]) =>
           CarouselWidget(item: item, page: page));
   components.putIfAbsent(
       "BannerCollection",
-          () => (br.Page page, br.ContainerItem item) =>
+      () => (br.Page page, br.ContainerItem item, [void Function(String newPath)? setPage]) =>
           BannerCollection(item: item, page: page));
   components.putIfAbsent(
       "TitleAndText",
-          () => (br.Page page, br.ContainerItem item) =>
+      () => (br.Page page, br.ContainerItem item, [void Function(String newPath)? setPage]) =>
           TitleAndTextWidget(item: item, page: page));
+  components.putIfAbsent(
+      "List",
+      () => (br.Page page, br.ContainerItem item, [void Function(String newPath)? setPage]) =>
+          ListWidget(item: item, page: page, setPage: setPage));
   return components;
 }
 
@@ -41,7 +43,8 @@ class BrApplication extends StatefulWidget {
   final String baseUrl;
   final String channelId;
 
-  const BrApplication(this.baseUrl, this.channelId, {Key? key}) : super(key: key);
+  const BrApplication(this.baseUrl, this.channelId, {Key? key})
+      : super(key: key);
 
   @override
   BrApplicationState createState() {
@@ -54,12 +57,13 @@ class BrApplicationState extends State<BrApplication> {
   final String channelId;
   late Future<br.Page> page;
   String currentPath = '';
-  final Map<String, dynamic Function(br.Page page, br.ContainerItem item)> componentMapping = getComponentMapping();
+  final Map<String, dynamic Function(br.Page page, br.ContainerItem item, [void Function(String newPath)? setPage])>
+      componentMapping = getComponentMapping();
 
   @override
   void initState() {
     super.initState();
-    this.currentPath = Uri?.base?.path ?? '';
+    currentPath = Uri.base.path;
     update();
   }
 
@@ -85,8 +89,7 @@ class BrApplicationState extends State<BrApplication> {
       pageApi.apiClient.defaultHeaderMap
           .putIfAbsent("Server-Id", () => serverId);
     }
-    this.page = pageApi.getPage(channelId, path.replaceFirst('/', ''))
-        as Future<br.Page>;
+    page = pageApi.getPage(channelId, path.replaceFirst('/', ''));
   }
 
   @override
@@ -95,14 +98,16 @@ class BrApplicationState extends State<BrApplication> {
       title: "path: " + currentPath,
       home: Scaffold(
         drawer: FutureBuilder<br.Page>(
-          future: page as Future<br.Page>,
+          future: page,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               br.Page page = snapshot.data as br.Page;
               br.Component menuComponent = page.getComponentByPath('menu');
-              br.Menu menu = menuComponent.getMenu(page) as br.Menu;
+              br.Menu? menu = menuComponent.getMenu(page);
 
-              return NavigationDrawer(page, menu, setPage);
+              return menu != null
+                  ? NavigationDrawer(page, menu, setPage)
+                  : Text('error with menu}');
             } else if (snapshot.hasError) {
               return Text('${snapshot.error}');
             }
@@ -133,7 +138,7 @@ class BrApplicationState extends State<BrApplication> {
               br.Container container = page.getComponentByPath('container');
               var items = container.getComponents(page);
 
-              return SimpleComponentListView2(componentMapping, items, page);
+              return br.MappedComponentsListView(componentMapping, items, page, setPage);
             } else if (snapshot.hasError) {
               return Text('${snapshot.error}');
             }
@@ -161,12 +166,12 @@ class NavigationDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     List<Widget> items = menu
-        ?.getSiteMenuItems()
-        ?.map((item) => buildMenuItem(
+        .getSiteMenuItems()
+        .map((item) => buildMenuItem(
             text: item.name ?? '',
-            onClicked: () =>
-                onMenuItemClicked(context, item.getLink() as String)))
-        .toList() as List<Widget>;
+            onClicked: () => onMenuItemClicked(context, item.getLink() ?? '')))
+        .toList();
+    items.insert(0, SizedBox(height: 20,));
     return Drawer(
         child: Container(
             color: Colors.blue,
@@ -184,62 +189,11 @@ class NavigationDrawer extends StatelessWidget {
     final hoverColor = Colors.white70;
 
     return ListTile(
+
       // leading: Icon(icon, color: color),
       title: Text(text, style: TextStyle(color: color)),
       hoverColor: hoverColor,
       onTap: onClicked,
     );
-  }
-}
-
-
-
-class BannerCollection extends StatelessWidget {
-  final br.ContainerItem? item;
-  final br.Page? page;
-
-  const BannerCollection({Key? key, this.item, this.page}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    List<dynamic> banners =
-        this.item?.getContent(this.page as br.Page)?.getData("banners");
-
-    return Column(
-        children: banners.map((banner) {
-      String message = banner['subtitle'];
-      String title = banner['text'];
-      br.Pointer imagePointer =
-          br.Pointer.fromJson(banner['image']) as br.Pointer;
-      br.Imageset image =
-          page?.page[imagePointer.getReference()] as br.Imageset;
-      String imageUrl = image.getImageLink() as String;
-      return ClipRect(
-          /** Banner Widget **/
-          child: Banner(
-        message: message,
-        location: BannerLocation.topEnd,
-        color: Colors.red,
-        child: Container(
-          color: Colors.grey[100],
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
-            child: Column(
-              children: <Widget>[
-                Image.network(imageUrl),
-                SizedBox(height: 5),
-                ElevatedButton(
-                  child: Text(title),
-                  style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(Colors.red)),
-                  onPressed: () {},
-                )
-                //RaisedButton
-              ], //<Widget>[]
-            ), //Column
-          ), //Padding
-        ), //Container
-      ));
-    }).toList());
   }
 }
