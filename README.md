@@ -1,6 +1,7 @@
-# brcontentdemo
+# Bloomreach Content Flutter Demo
 
-Bloomreach Content Flutter Demo
+using the BrContent SDK 
+https://pub.dev/packages/brcontent
 
 ## Try Android APK
 
