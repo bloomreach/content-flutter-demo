@@ -9,7 +9,7 @@ https://pub.dev/packages/brcontent
 
 ## Try web demo
 
-https://flutter-demo.bloomreach.works/
+https://content-flutter-demo.vercel.app/
 
 ## Getting Started
 
