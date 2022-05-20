@@ -10,7 +10,7 @@ class BannerCollection
   @override
   Widget build(BuildContext context) {
     List<dynamic> banners =
-        this.item.getContent(this.page as br.Page)?.getData("banners");
+        this.item.getContent(this.page)?.getData("banners");
 
     return Column(
         children: banners.map((banner) {
