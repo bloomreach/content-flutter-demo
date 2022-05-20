@@ -18,15 +18,13 @@ class BannerCollection
       String title = banner['text'];
       br.Pointer imagePointer =
           br.Pointer.fromJson(banner['image']) as br.Pointer;
-      br.Imageset image =
-          page.page[imagePointer.getReference()] as br.Imageset;
+      br.Imageset image = page.page[imagePointer.getReference()] as br.Imageset;
       String imageUrl = image.getImageLink() as String;
       return ClipRect(
-          /** Banner Widget **/
           child: Banner(
         message: message,
         location: BannerLocation.topEnd,
-        color: Colors.red,
+        color: Color(0xFF00b2db),
         child: Container(
           color: Colors.grey[100],
           child: Padding(
@@ -38,7 +36,8 @@ class BannerCollection
                 ElevatedButton(
                   child: Text(title),
                   style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(Colors.red)),
+                      backgroundColor:
+                          MaterialStateProperty.all(Color(0xFF00b2db))),
                   onPressed: () {},
                 )
                 //RaisedButton

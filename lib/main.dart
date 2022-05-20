@@ -11,9 +11,10 @@ import 'package:bloomreachdemo/widget/BannerCollection.dart';
 import 'package:bloomreachdemo/widget/CarouselWidget.dart';
 import 'package:bloomreachdemo/widget/TitleAndTextWidget.dart';
 
+
+
 void main() {
-  runApp(BrApplication(
-      "https://sandbox-sales02.bloomreach.io", 'mobile-native-demo'));
+  runApp(DemoApplication("https://sandbox-sales02.bloomreach.io", 'mobile-native-demo'));
 }
 
 Map<String, dynamic Function(br.Page page, br.ContainerItem item,[void Function(String newPath)? setPage])>
@@ -39,113 +40,35 @@ Map<String, dynamic Function(br.Page page, br.ContainerItem item,[void Function(
   return components;
 }
 
-class BrApplication extends StatefulWidget {
-  final String baseUrl;
-  final String channelId;
-
-  const BrApplication(this.baseUrl, this.channelId, {Key? key})
-      : super(key: key);
+class DemoApplication extends br.Application {
+  DemoApplication(String baseUrl, String channelId)
+      : super(baseUrl, channelId, getComponentMapping());
 
   @override
-  BrApplicationState createState() {
-    return BrApplicationState(baseUrl, channelId);
+  br.ApplicationState<br.Application> createState() {
+    return DemoApplicationState();
   }
 }
 
-class BrApplicationState extends State<BrApplication> {
-  final String baseUrl;
-  final String channelId;
-  late Future<br.Page> page;
-  String currentPath = '';
-  final Map<String, dynamic Function(br.Page page, br.ContainerItem item, [void Function(String newPath)? setPage])>
-      componentMapping = getComponentMapping();
+class DemoApplicationState extends br.ApplicationState {
 
   @override
-  void initState() {
-    super.initState();
-    currentPath = Uri.base.path;
-    update();
-  }
+  Widget buildPage(BuildContext context, br.Page page) {
+    br.Component menuComponent = page.getComponentByPath('menu');
+    br.Menu menu = menuComponent.getMenu(page) as br.Menu;
 
-  void setPage(String newPath) {
-    setState(() {
-      currentPath = newPath;
-      update();
-    });
-  }
+    br.Container container = page.getComponentByPath('container');
+    var items = container.getComponents(page);
 
-  BrApplicationState(this.baseUrl, this.channelId);
-
-  void update() {
-    final String? token = Uri.base.queryParameters["token"];
-    final String? serverId = Uri.base.queryParameters["server-id"];
-    final String path = currentPath;
-
-    final pageApi = br.PageApi(br.ApiClient(basePath: baseUrl));
-
-    if (token != null && serverId != null) {
-      pageApi.apiClient.defaultHeaderMap
-          .putIfAbsent("Authorization", () => "Bearer " + token);
-      pageApi.apiClient.defaultHeaderMap
-          .putIfAbsent("Server-Id", () => serverId);
-    }
-    page = pageApi.getPage(channelId, path.replaceFirst('/', ''));
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return MaterialApp(
-      title: "path: " + currentPath,
+      title: page.getDocument()?.getData('title'),
       home: Scaffold(
-        drawer: FutureBuilder<br.Page>(
-          future: page,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              br.Page page = snapshot.data as br.Page;
-              br.Component menuComponent = page.getComponentByPath('menu');
-              br.Menu? menu = menuComponent.getMenu(page);
-
-              return menu != null
-                  ? NavigationDrawer(page, menu, setPage)
-                  : Text('error with menu}');
-            } else if (snapshot.hasError) {
-              return Text('${snapshot.error}');
-            }
-            // By default, show a loading spinner.
-            return Center(child: CircularProgressIndicator());
-          },
-        ),
+        drawer: NavigationDrawer(page, menu, setPage),
         appBar: AppBar(
-          title: FutureBuilder<br.Page>(
-            future: page,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                br.Page page = snapshot.data as br.Page;
-                return Text(page.getDocument()?.data?['title']);
-              } else if (snapshot.hasError) {
-                return Text('${snapshot.error}');
-              }
-              // By default, show a loading spinner.
-              return Center(child: CircularProgressIndicator());
-            },
-          ),
+          backgroundColor: Color(0xFF002840),
+          title: Text(page.getDocument()?.getData('title')),
         ),
-        body: FutureBuilder<br.Page>(
-          future: page,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              br.Page page = snapshot.data as br.Page;
-              br.Container container = page.getComponentByPath('container');
-              var items = container.getComponents(page);
-
-              return br.MappedComponentsListView(componentMapping, items, page, setPage);
-            } else if (snapshot.hasError) {
-              return Text('${snapshot.error}');
-            }
-            // By default, show a loading spinner.
-            return Center(child: CircularProgressIndicator());
-          },
-        ),
+        body: br.ContainerItemComponentsListView(componentMapping, container, page, setPage),
       ),
     );
   }
@@ -155,8 +78,10 @@ class NavigationDrawer extends StatelessWidget {
   final br.Page page;
   final br.Menu menu;
   final void Function(String newPath) setPath;
+  final padding = const EdgeInsets.symmetric(horizontal: 20);
 
-  NavigationDrawer(this.page, this.menu, this.setPath);
+  const NavigationDrawer(this.page, this.menu, this.setPath, {Key? key})
+      : super(key: key);
 
   void onMenuItemClicked(BuildContext context, String newPath) {
     setPath(newPath);
@@ -165,34 +90,42 @@ class NavigationDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> items = menu
-        .getSiteMenuItems()
-        .map((item) => buildMenuItem(
-            text: item.name ?? '',
-            onClicked: () => onMenuItemClicked(context, item.getLink() ?? '')))
-        .toList();
-    items.insert(0, SizedBox(height: 20,));
+    List<Widget> items = []
+      ..add(SizedBox(height: 40))
+      ..add(Image.network(
+        "https://sandbox-sales02.bloomreach.io/delivery/resources/content/gallery/logo/br-logo-primary.png",
+        fit: BoxFit.cover,
+      ))
+      ..add(SizedBox(height: 20))
+      ..addAll(menu.getSiteMenuItems().map((item) => buildMenuItem(
+          icon: Icons.arrow_forward_outlined,
+          text: item.name ?? '',
+          onClicked: () => onMenuItemClicked(context, item.getLink() ?? ''))));
+
     return Drawer(
+      child: Material(
+        color: Colors.white,
         child: Container(
-            color: Colors.blue,
-            child: Column(
-              children: items,
-            )));
+          padding: padding,
+          child: Column(
+            children: items,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget buildMenuItem({
+    required IconData icon,
     required String text,
-    // required IconData icon,
     VoidCallback? onClicked,
   }) {
-    final color = Colors.white;
-    final hoverColor = Colors.white70;
+    final color = Color(0xFF002840);
 
     return ListTile(
-
-      // leading: Icon(icon, color: color),
+      trailing: Icon(icon, color: color),
+      // leading:
       title: Text(text, style: TextStyle(color: color)),
-      hoverColor: hoverColor,
       onTap: onClicked,
     );
   }

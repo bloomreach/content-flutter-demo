@@ -1,4 +1,4 @@
-# fluttersdkv1
+# Bloomreach Flutter Demo
 
 A new Flutter project.
 
