@@ -35,7 +35,9 @@ getComponentMapping() {
 }
 
 void main() {
-  runApp(DemoApplication("https://sandbox-sales02.bloomreach.io", 'mobile-native-demo', getComponentMapping()));
+  WidgetsFlutterBinding.ensureInitialized();
+  //https://trial-3csawakw.bloomreach.io/delivery/site/v1/channels/flutter-demo/pages/
+  runApp(DemoApplication("https://trial-3csawakw.bloomreach.io", 'flutter-demo', getComponentMapping()));
 }
 
 class DemoApplication extends br.Application {
