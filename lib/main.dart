@@ -36,7 +36,6 @@ getComponentMapping() {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  //https://trial-3csawakw.bloomreach.io/delivery/site/v1/channels/flutter-demo/pages/
   runApp(DemoApplication("https://sandbox-sales06.bloomreach.io", 'flutter-demo', getComponentMapping()));
 }
 
